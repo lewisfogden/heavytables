@@ -55,16 +55,11 @@ if __name__ == "__main__":
     band_table.get(table_band_test)
 
 class IntKeyTable:
-    """Vectorised Table Allowing for multiple keys
-    
-    Keys are all integers
-    Use BandIndex for non integer keys (covert to 0..1...N)
-    """
-
+    """Vectorised Table Allowing for multiple integer keys"""
     def __init__(self, df: pd.DataFrame):
         self.key_cols = list(df.columns[:-1])
         self.value_col = df.columns[-1]
-        self.df = df.sort_values(by=list(reversed(self.key_cols)))
+        self.df = df.sort_values(by=list(reversed(self.key_cols))) # TODO: don't need to store this in self, this but handy for testing.
         self.bases = [min(self.df[col]) for col in self.key_cols]
         self.ranges = [max(self.df[col]) - min(self.df[col]) + 1 for col in self.key_cols]
 
@@ -128,14 +123,12 @@ class Table:
     col_types = "int", "int_bound", "str", "band", "float"
 
     def __init__(self, df:pd.DataFrame):
-        # scan columns
-        
-        # convert non-integer keys to integers
         key_cols = list(df.columns[:-1])
         df = df.sort_values(key_cols[::-1]) # sort by reverse order
 
-        # col_types = [col.split("|")[1] for col in key_cols]
+        df_int_keys = df.copy() # this will have keys overriden as we work through mappers
 
+        # prepare the mappers
         self.mappers = []
         for col in key_cols:
             col_type = col.split("|")[1] # "int", "str" etc
@@ -143,67 +136,40 @@ class Table:
                 self.mappers.append(SelfLookup()) # just so we have .get (a bit inefficient?)
             elif col_type in ["str", "band"]:
                 df_col = pd.DataFrame(df[col].unique(), columns=["band_name"]).reset_index().sort_values("band_name")
+
+                # add a nan on the end so we get errors if the lookup fails
+                # as by default the BandLookup will return last item if no earlier matches
+                df_col.loc[len(df_col)] = len(df_col), np.nan
+
                 band_mapper = BandLookup.from_dataframe(df_col, "band_name", "index")
                 self.mappers.append(band_mapper)
+                df_int_keys[col] = band_mapper.get(df_int_keys[col])
             else:
-                raise NotImplementedError(f"{col_types} not implemented on {col}")
+                raise NotImplementedError(f"{col_type} not implemented on {col}")
         
         # create an intkeytable
-        # prepare the right keys
 
-        self._int_key_table = IntKeyTable
-
-
-        # assign mappers for non-integer types
-
-        # for integer types - skip or use a neutral mapper?
-
-# may a custom designed lookup
+        self._int_key_table = IntKeyTable(df_int_keys)
     
-# %%
-df = pd.read_excel(src_file, sheet_name="table_str_int_band")
-key_cols = list(df.columns[:-1])
+    def get(self, *keys):
+        assert len(keys) == len(self.mappers)
+        int_keys = [mapper.get(key) for key, mapper in zip(keys, self.mappers)]
+        return self._int_key_table.get_value(*int_keys)
 
-df = df.sort_values(key_cols[::-1]) # put the columns in order
-df
+    def __getitem__(self, keys):
+        return self.get(*keys)
 
-# get the column types
-col_types = [col.split("|")[1] for col in key_cols]
-col_types
+    @classmethod
+    def read_excel(cls, spreadsheet_path, sheet_name):
+        df = pd.read_excel(spreadsheet_path, sheet_name=sheet_name)
+        return cls(df)
 
-# generate mappers for non-integer types
-# str
-#product|str
-df_product = pd.DataFrame(df[key_cols[0]].unique(), columns=["band_name"]).reset_index().sort_values("band_name")
-product_band = BandLookup.from_dataframe(df_product, "band_name", "index")
-test_products = np.array(["ABC", "DEFG", "IJKLM", "IJKLM", "ABC"])
-print(product_band.get(test_products))
+if __name__ == "__main__":
+    table_str_int_band = Table.read_excel(src_file, sheet_name="table_str_int_band")
+    print(table_str_int_band["ABC", 2023, 2522])
 
-df_fund_to = pd.DataFrame(df[key_cols[2]].unique(), columns=["band_name"]).reset_index().sort_values("band_name")
-fund_to_band = BandLookup.from_dataframe(df_fund_to, "band_name", "index")
-test_bands = np.linspace(0, 1_300_000, 1000)
-print(fund_to_band.get(test_bands))
-
-df_int_keys = df.copy()
-df_int_keys["product|int"] = product_band.get(df_int_keys["product|str"])
-df_int_keys["fund_to|int"] = fund_to_band.get(df_int_keys["fund_to|band"])
-df_int_keys = df_int_keys[["product|int", "year|int", "fund_to|int", "value|float"]]
-df_int_keys
-# %%
-table_df = IntKeyTable(df_int_keys)
-
-# now to test - sample a lot
-
-sample_df = df.sample(1_000_000, replace=True, random_state=42)
-
-# now we need to look up using translated keys
-
-sample_keys = product_band.get(sample_df["product|str"]), sample_df["year|int"].values, fund_to_band.get(sample_df["fund_to|band"])
-
-sample_df["result"] = table_df[sample_keys]
-sample_df["diff"] = sample_df["result"] - sample_df["value|float"]
-print(np.allclose(sample_df["result"], sample_df["value|float"]))
-print(sample_df["diff"].describe())
-
-
-# %%
+    df_table_test = pd.read_excel(src_file, sheet_name="table_str_int_band")
+    df_sample = df_table_test.sample(1_000_000, replace=True, random_state=42)
+    df_sample["result"] = table_str_int_band[df_sample["product|str"], df_sample["year|int"], df_sample["fund_to|band"]]
+    df_sample["diff"] = df_sample["result"] - df_sample["value|float"]
+    print(df_sample["diff"].describe())
