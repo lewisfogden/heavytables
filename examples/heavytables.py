@@ -59,6 +59,11 @@ class IntKeyTable:
     def __init__(self, df: pd.DataFrame):
         self.key_cols = list(df.columns[:-1])
         self.value_col = df.columns[-1]
+
+        # set all key_cols to be integers
+        for col in self.key_cols:
+            df[col] = df[col].astype(int)
+
         self.df = df.sort_values(by=list(reversed(self.key_cols))) # TODO: don't need to store this in self, this but handy for testing.
         self.bases = [min(self.df[col]) for col in self.key_cols]
         self.ranges = [max(self.df[col]) - min(self.df[col]) + 1 for col in self.key_cols]
@@ -128,6 +133,7 @@ class Table:
 
         df_int_keys = df.copy() # this will have keys overriden as we work through mappers
 
+        # TODO: make sure keys are ints
         # prepare the mappers
         self.mappers = []
         for col in key_cols:
@@ -139,8 +145,8 @@ class Table:
 
                 # add a nan on the end so we get errors if the lookup fails
                 # as by default the BandLookup will return last item if no earlier matches
-                df_col.loc[len(df_col)] = len(df_col), np.nan
-
+                # commented out as it converts the datatype
+                # df_col.loc[len(df_col)] = len(df_col), np.nan
                 band_mapper = BandLookup.from_dataframe(df_col, "band_name", "index")
                 self.mappers.append(band_mapper)
                 df_int_keys[col] = band_mapper.get(df_int_keys[col])
@@ -173,3 +179,4 @@ if __name__ == "__main__":
     df_sample["result"] = table_str_int_band[df_sample["product|str"], df_sample["year|int"], df_sample["fund_to|band"]]
     df_sample["diff"] = df_sample["result"] - df_sample["value|float"]
     print(df_sample["diff"].describe())
+# %%
