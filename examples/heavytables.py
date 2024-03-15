@@ -159,15 +159,24 @@ class Table:
     
     def get(self, *keys):
         assert len(keys) == len(self.mappers)
+        # TODO: if just one key then this doesn't work?  (needs fixed throughout)
         int_keys = [mapper.get(key) for key, mapper in zip(keys, self.mappers)]
         return self._int_key_table.get_value(*int_keys)
 
     def __getitem__(self, keys):
+        # print(keys, type(keys))
+        if not isinstance(keys, tuple):
+            keys = keys, #force to be a tuple
         return self.get(*keys)
 
     @classmethod
     def read_excel(cls, spreadsheet_path, sheet_name):
         df = pd.read_excel(spreadsheet_path, sheet_name=sheet_name)
+        return cls(df)
+    
+    @classmethod
+    def read_csv(cls, csv_path):
+        df = pd.read_csv(csv_path)
         return cls(df)
 
 if __name__ == "__main__":

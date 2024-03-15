@@ -1,1 +1,4 @@
 /examples/.~*xlsx#
+.DS_Store
+.gitignore
+*.pyc
