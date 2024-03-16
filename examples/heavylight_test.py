@@ -86,7 +86,7 @@ class TableTest(heavylight.Model):
 
 # simulate some data - store in a dictionary to pass into the model
 rng = np.random.default_rng(seed=42)
-policies = 1000
+policies = 100000
 
 data = dict(
     init_fund = rng.uniform(low=1000, high=250000, size=policies),
