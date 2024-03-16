@@ -70,7 +70,7 @@ if __name__ == '__main__':
     print(proj_l1.ToDataFrame())
 
 # %%
-# combined model
+# combined model (don't actually need to inherit Model directly)
 class Term(Core, Life1, Model):
     def claim(self, t):
         return self.qx_monthly(t) * self.data['sum_assured']
