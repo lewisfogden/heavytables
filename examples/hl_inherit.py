@@ -8,10 +8,7 @@ class Core(Model):
         return t
     
     def proj_month(self, t):
-        """projection month: 1=Jan, 12=Dec
-        
-        Assumes projection starts in January (could override using "init_proj_month")
-        """
+        """projection month: 1=Jan, 12=Dec"""
         if t == 0:
             return self.data['init_proj_month']
         elif self.proj_month(t - 1) == 12:
