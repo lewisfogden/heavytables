@@ -1,4 +1,5 @@
-# heavytables.py
+# heavytables_clipped.py
+# version of heavy tables with clipped limits
 # %%
 import pandas as pd
 import numpy as np
