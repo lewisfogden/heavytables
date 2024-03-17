@@ -1,16 +1,22 @@
-# heavytables.py
 # %%
 import pandas as pd
 import numpy as np
 
 np.set_printoptions(suppress=True, formatter={'float_kind':'{:f}'.format})
 
-class SelfLookup:
-    def __int__(self, *args, **kwargs):
-        pass
+# Lookup classes - these convert lookups from a discrete type to an integer
 
+class IntegerLookup:
     def get(self, values):
         return values
+
+class BoundIntLookup:
+    def __init__(self, lower, upper):
+        self.lower = int(lower)
+        self.upper = int(upper)
+    
+    def get(self, numpy_array):
+        return np.clip(numpy_array, self.lower, self.upper)
 
 class BandLookup:
     def __init__(self, upper_bounds, labels):
@@ -133,19 +139,23 @@ class Table:
 
         df_int_keys = df.copy() # this will have keys overriden as we work through mappers
 
-        # TODO: make sure keys are ints
         # prepare the mappers
         self.mappers = []
         for col in key_cols:
             col_type = col.split("|")[1] # "int", "str" etc
             if col_type == "int":
-                self.mappers.append(SelfLookup()) # just so we have .get (a bit inefficient?)
+                self.mappers.append(IntegerLookup()) # just so we have .get (a bit inefficient?)
+            elif col_type == "int_bound":
+                # bound integer forces values to be between the lowest and highest value in the table, for example maximum durations in mortality tables.
+                lower = df[col].min()
+                upper = df[col].max()
+                self.mappers.append(BoundIntLookup(lower=lower, upper=upper))
             elif col_type in ["str", "band"]:
                 df_col = pd.DataFrame(df[col].unique(), columns=["band_name"]).reset_index().sort_values("band_name")
 
                 # add a nan on the end so we get errors if the lookup fails
                 # as by default the BandLookup will return last item if no earlier matches
-                # commented out as it converts the datatype
+                # commented out as it converts the datatype - we need these to be integers
                 # df_col.loc[len(df_col)] = len(df_col), np.nan
                 band_mapper = BandLookup.from_dataframe(df_col, "band_name", "index")
                 self.mappers.append(band_mapper)
@@ -193,4 +203,15 @@ if __name__ == "__main__":
     df_sample["result"] = table_str_int_band[df_sample["product|str"], df_sample["year|int"], df_sample["fund_to|band"]]
     df_sample["diff"] = df_sample["result"] - df_sample["value|float"]
     print(df_sample["diff"].describe())
+
+    # bound table
+    mort_bound = Table.read_csv(r"csv_tables/fake_tmnl16_bound.csv")
+    mort = Table.read_csv(r"csv_tables/fake_tmnl16.csv")
+    print(mort_bound[18, 5])
+    print(mort_bound[18, 6])
+# %%
+if __name__ == '__main__':
+    print(mort[18, 5])
+    print(mort[18, 6])
+
 # %%
