@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+src-dir = "src"
+
+[project]
+name = "heavytables"
+version = "0.0.1"
+authors = [
+  { name="Lewis Fogden" }
+]
+description = "Efficient actuarial lookup tables from dataframes. Vectorized indexing in NumPy instead of joins, for efficient runtime lookups."
+readme = "README.md"
+requires-python = ">=3.8"
+
+dependencies = [
+    "pandas",
+    "numpy"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==7.4.3",
+    "pytest-cov",
+]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
+testpaths = [
+    "tests",
+]
